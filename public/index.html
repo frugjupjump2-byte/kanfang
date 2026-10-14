@@ -29,6 +29,7 @@ h3{margin:22px 0 8px;font-size:16px}
 ul.mu{padding-left:20px;line-height:1.9;margin:0}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .bar i.ok{background:#16a34a}.bar i.warn{background:#f59e0b}.bar i.bad{background:#dc2626}
+.gd{margin-top:6px}.gd p{margin:8px 0}.pt{margin:14px 0 0}.pt b{display:block;margin-bottom:2px}.bl{margin:8px 0 0;padding-left:1em;text-indent:-1em}
 </style></head><body>
 <div id="app">載入中…</div>
 <nav><button data-v="list" onclick="go('list')">🏠<span>看屋筆記</span></button><button data-v="guide" onclick="go('guide')">📖<span>買房攻略</span></button><button data-v="calc" onclick="go('calc')">🧮<span>貸款試算</span></button><button data-v="fin" onclick="go('fin')">📊<span>財務健檢</span></button></nav>
@@ -86,7 +87,17 @@ async function del(){
   try{await api('properties/'+edit.id,{method:'DELETE'});P=await api('properties');go('list')}catch(e){alert('刪除失敗：'+e.message)}
 }
 
-const vGuide=()=>'<h2>買房攻略</h2>'+G.map(g=>`<details class="card"><summary><b>${esc(g.title)}</b><div class="mu">${esc(g.category)}</div></summary><div style="white-space:pre-wrap;margin-top:10px">${esc(g.content)}</div></details>`).join('');
+function fmtG(x){
+  const L=String(x??'').replace(/(^|[^\d])(\d+\.\s)/g,'$1\n$2').replace(/(雷區\s?\d+[：:])/g,'\n$1').replace(/•/g,'\n•').split(/\n+/).map(l=>l.trim()).filter(Boolean);
+  let h='',open=false;
+  for(const l of L){
+    if(l[0]==='•'){h+=(open?'</div>':'')+`<div class="bl">${esc(l)}</div>`;open=false}
+    else if(/^(\d+\.\s|雷區\s?\d+[：:])/.test(l)){h+=(open?'</div>':'')+`<div class="pt">${l.length<=40?`<b>${esc(l)}</b>`:esc(l)}`;open=true}
+    else h+=open?`<div>${esc(l)}</div>`:`<p>${esc(l)}</p>`;
+  }
+  return h+(open?'</div>':'');
+}
+const vGuide=()=>'<h2>買房攻略</h2>'+G.map(g=>`<details class="card"><summary><b>${esc(g.title)}</b><div class="mu">${esc(g.category)}</div></summary><div class="gd">${fmtG(g.content)}</div></details>`).join('');
 
 let C={price:2480,dw:496,yr:30,rate:2.1,grace:0};
 try{Object.assign(C,JSON.parse(localStorage.getItem('calc')||'{}'))}catch{}
