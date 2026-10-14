@@ -12,3 +12,4 @@ export async function onRequest({ request, env, next }) {
     headers: { 'WWW-Authenticate': 'Basic realm="kanfang", charset="UTF-8"' },
   });
 }
+
