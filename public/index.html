@@ -1,0 +1,104 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes"><title>看房筆記</title>
+<style>
+:root{--bg:#f5f5f5;--card:#fff;--tx:#1a1a1a;--mu:#666;--pr:#2563eb}
+@media(prefers-color-scheme:dark){:root{--bg:#111;--card:#1c1c1e;--tx:#f2f2f2;--mu:#999}}
+*{box-sizing:border-box}
+body{margin:0 auto;max-width:560px;background:var(--bg);color:var(--tx);font:15px/1.5 system-ui,"Noto Sans TC","PingFang TC",sans-serif;padding:16px 16px 110px}
+.card{background:var(--card);border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:0 1px 2px #0001}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.mu{color:var(--mu);font-size:13px}.big{font-size:22px;font-weight:700}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.tabs{display:flex;gap:4px;background:#8881;border-radius:10px;padding:3px;margin:12px 0;overflow-x:auto}
+.tabs button{flex:1;border:0;background:none;padding:6px 10px;border-radius:8px;color:var(--tx);white-space:nowrap;font:inherit}
+.tabs .on{background:var(--card);font-weight:600}
+.b{font-size:12px;padding:2px 10px;border-radius:99px}
+.s-心儀{background:#d1fae5;color:#065f46}.s-考慮中{background:#dbeafe;color:#1e40af}.s-已淘汰{background:#e5e7eb;color:#4b5563}
+label{font-size:13px;color:var(--mu)}
+input,select,textarea{width:100%;padding:10px;border:0;border-radius:8px;background:#8881;color:var(--tx);font:inherit;margin:4px 0 12px}
+.btn{background:var(--pr);color:#fff;border:0;border-radius:10px;padding:12px;width:100%;font:inherit;font-weight:600}
+.btn.del{background:none;color:#dc2626;margin-top:6px}
+nav{position:fixed;bottom:calc(12px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);display:flex;gap:6px;background:var(--card);padding:6px;border-radius:99px;box-shadow:0 4px 16px #0003}
+nav button{border:0;background:none;padding:6px 16px;border-radius:99px;color:var(--tx);display:flex;flex-direction:column;align-items:center;font-size:12px}
+nav .on{background:#dbeafe;color:#1e40af}
+summary{cursor:pointer}
+</style></head><body>
+<div id="app">載入中…</div>
+<nav><button data-v="list" onclick="go('list')">🏠<span>看屋筆記</span></button><button data-v="guide" onclick="go('guide')">📖<span>買房攻略</span></button><button data-v="calc" onclick="go('calc')">🧮<span>貸款試算</span></button></nav>
+<script>
+const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
+const num=v=>v==null||v===''?'—':(+v).toLocaleString();
+const api=(p,o={})=>fetch('/api/'+p,{headers:{'content-type':'application/json'},...o}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json()});
+const ST=['心儀','考慮中','已淘汰'];
+let P=[],G=[],view='list',flt='全部',edit=null;
+
+async function load(){[P,G]=await Promise.all([api('properties'),api('guides')]);go('list')}
+function go(v){view=v;edit=null;draw()}
+function draw(){
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===view||(view==='form'&&b.dataset.v==='list')));
+  $('#app').innerHTML=({list:vList,form:vForm,guide:vGuide,calc:vCalc})[view]();
+  if(view==='calc')calc();
+}
+
+function vList(){
+  const n=P.length,avg=n?P.reduce((a,p)=>a+(+p.price_wan||0),0)/n:0,top=Math.max(0,...P.map(p=>+p.rating||0));
+  const L=flt==='全部'?P:P.filter(p=>p.status===flt);
+  return `<h2>看屋筆記</h2>
+  <div class="grid"><div class="card"><div class="mu">平均開價</div><div class="big">${Math.round(avg).toLocaleString()} 萬</div></div>
+  <div class="card"><div class="mu">最高綜合評分</div><div class="big">${top.toFixed(1)} 分</div></div></div>
+  <button class="btn" onclick="openForm()">＋ 新增物件</button>
+  <div class="tabs">${['全部',...ST].map(s=>`<button class="${s===flt?'on':''}" onclick="flt='${s}';draw()">${s} (${s==='全部'?n:P.filter(p=>p.status===s).length})</button>`).join('')}</div>
+  ${L.map(p=>`<div class="card" onclick="openForm(${p.id})">
+    <div class="row"><b>${esc(p.title)}</b><span class="b s-${esc(p.status)}">${esc(p.status)}</span></div>
+    <div class="mu">📍 ${esc(p.address)}</div>
+    <div style="margin:6px 0"><b style="font-size:17px">${num(p.price_wan)} 萬</b> <span class="mu">　${esc(p.layout)}　${num(p.area_ping)} 坪　屋齡 ${num(p.age_years)} 年</span></div>
+    <div class="row mu"><span>${esc(p.visit_date)} 看屋</span><span>⭐ ${(+p.rating||0).toFixed(1)}</span></div></div>`).join('')||'<p class="mu">這個分類還沒有物件</p>'}`;
+}
+
+const FD=[['title','物件名稱 *','text','例：捷運晴川三房'],['address','地址','text','例：新北市板橋區莊敬路'],['price_wan','開價（萬）','number','2480'],['visit_date','看屋日期','date'],['layout','格局','text','3房2廳2衛'],['area_ping','坪數','number','38.2'],['age_years','屋齡（年）','number','7'],['parking','停車位','text','含坡平車位'],['rating','綜合評分（1–5）','number','4.0'],['status','狀態','select']];
+const TX=[['pros','優點'],['cons','缺點'],['notes','備註']],NUMS=['price_wan','area_ping','age_years','rating'];
+function openForm(id){edit=id?P.find(p=>p.id===id):{status:'考慮中',rating:3,visit_date:new Date().toISOString().slice(0,10)};view='form';draw();scrollTo(0,0)}
+function vForm(){
+  const e=edit;
+  return `<a class="mu" href="#" onclick="go('list');return false">← 看屋筆記</a><h2>${e.id?'編輯':'新增'}物件記錄</h2>
+  ${FD.map(([k,l,t,ph])=>`<label>${l}</label>`+(t==='select'
+    ?`<select id="f_${k}">${ST.map(s=>`<option ${s===e[k]?'selected':''}>${s}</option>`).join('')}</select>`
+    :`<input id="f_${k}" type="${t}" ${t==='number'?'step="any"':''} value="${esc(e[k])}" placeholder="${esc(ph)}">`)).join('')}
+  ${TX.map(([k,l])=>`<label>${l}</label><textarea id="f_${k}" rows="3">${esc(e[k])}</textarea>`).join('')}
+  <button class="btn" onclick="save()">儲存</button>${e.id?'<button class="btn del" onclick="del()">刪除這筆</button>':''}`;
+}
+async function save(){
+  const b={};
+  [...FD,...TX].forEach(([k])=>{const v=$('#f_'+k).value.trim();b[k]=v===''?null:NUMS.includes(k)?+v:v});
+  if(!b.title)return alert('請輸入物件名稱');
+  try{await api('properties'+(edit.id?'/'+edit.id:''),{method:edit.id?'PUT':'POST',body:JSON.stringify(b)});P=await api('properties');go('list')}
+  catch(e){alert('儲存失敗：'+e.message)}
+}
+async function del(){
+  if(!confirm('確定刪除這筆物件？'))return;
+  try{await api('properties/'+edit.id,{method:'DELETE'});P=await api('properties');go('list')}catch(e){alert('刪除失敗：'+e.message)}
+}
+
+const vGuide=()=>'<h2>買房攻略</h2>'+G.map(g=>`<details class="card"><summary><b>${esc(g.title)}</b><div class="mu">${esc(g.category)}</div></summary><div style="white-space:pre-wrap;margin-top:10px">${esc(g.content)}</div></details>`).join('');
+
+const vCalc=()=>`<h2>貸款試算</h2><div class="card">
+  <label>帶入看過的物件</label><select id="c_p" onchange="pick()"><option value="">手動輸入</option>${P.map(p=>`<option value="${+p.price_wan||''}">${esc(p.title)}（${num(p.price_wan)} 萬）</option>`).join('')}</select>
+  <label>房價（萬）</label><input id="c_price" type="number" value="2000" oninput="calc()">
+  <label>自備款成數（%）</label><input id="c_down" type="number" value="20" oninput="calc()">
+  <label>年利率（%）</label><input id="c_rate" type="number" step="0.01" value="2.2" oninput="calc()">
+  <label>貸款年限（年）</label><input id="c_yr" type="number" value="30" oninput="calc()">
+  <label>攤還方式</label><select id="c_m" onchange="calc()"><option value="e">本息平均攤還</option><option value="p">本金平均攤還</option></select></div>
+  <div class="card" id="c_out"></div>`;
+function pick(){const x=$('#c_p').value;if(x){$('#c_price').value=x;calc()}}
+function calc(){
+  const v=k=>+$('#c_'+k).value||0,price=v('price')*1e4,down=price*v('down')/100,L=price-down,n=v('yr')*12,r=v('rate')/1200,e=$('#c_m').value==='e',f=x=>Math.round(x).toLocaleString()+' 元';
+  if(L<=0||n<=0)return $('#c_out').innerHTML='<span class="mu">請輸入完整資料</span>';
+  let m1,m2,tot;
+  if(e){m1=m2=r?L*r/(1-Math.pow(1+r,-n)):L/n;tot=m1*n-L}
+  else{m1=L/n+L*r;m2=L/n*(1+r);tot=L*r*(n+1)/2}
+  const row=(l,x)=>`<div class="mu" style="margin-top:8px">${l}</div><div class="big">${x}</div>`;
+  $('#c_out').innerHTML=row('自備款',f(down))+row('貸款金額',f(L))+row(e?'每月還款':'月付（首期 → 末期）',e?f(m1):f(m1)+' → '+f(m2))+row('總利息',f(tot));
+}
+load().catch(e=>$('#app').innerHTML='<p class="mu">載入失敗：'+esc(e.message)+'（請確認 D1 已綁定為 DB 並已匯入資料）</p>');
+</script></body></html>
