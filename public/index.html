@@ -32,15 +32,26 @@ ul.mu{padding-left:20px;line-height:1.9;margin:0}
 .gd{margin-top:6px}.gd p{margin:8px 0}.pt{margin:14px 0 0}.pt b{display:block;margin-bottom:2px}.bl{margin:8px 0 0;padding-left:1em;text-indent:-1em}
 </style></head><body>
 <div id="app">載入中…</div>
-<nav><button data-v="list" onclick="go('list')">🏠<span>看屋筆記</span></button><button data-v="guide" onclick="go('guide')">📖<span>買房攻略</span></button><button data-v="calc" onclick="go('calc')">🧮<span>貸款試算</span></button><button data-v="fin" onclick="go('fin')">📊<span>財務健檢</span></button></nav>
+<nav style="display:none"><button data-v="list" onclick="go('list')">🏠<span>看屋筆記</span></button><button data-v="guide" onclick="go('guide')">📖<span>買房攻略</span></button><button data-v="calc" onclick="go('calc')">🧮<span>貸款試算</span></button><button data-v="fin" onclick="go('fin')">📊<span>財務健檢</span></button></nav>
 <script>
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
 const num=v=>v==null||v===''?'—':(+v).toLocaleString();
-const api=(p,o={})=>fetch('/api/'+p,{headers:{'content-type':'application/json'},...o}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json()});
+const pw=()=>{try{return localStorage.getItem('pw')||''}catch{return''}};
+const api=(p,o={})=>fetch('/api/'+p,{headers:{'content-type':'application/json','X-App-Password':pw()},...o}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json()});
 const ST=['心儀','考慮中','已淘汰'];
 let P=[],G=[],view='list',flt='全部',edit=null;
 
-async function load(){[P,G]=await Promise.all([api('properties'),api('guides')]);go('list')}
+async function load(){[P,G]=await Promise.all([api('properties'),api('guides')]);$('nav').style.display='';go('list')}
+function showLogin(msg){
+  $('nav').style.display='none';
+  $('#app').innerHTML=`<h2>看房筆記</h2><label>請輸入密碼</label><input id="pw" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')login()"><div class="mu" style="color:#dc2626;margin-bottom:8px">${msg||''}</div><button class="btn" onclick="login()">登入</button>`;
+}
+async function login(){
+  const v=$('#pw').value;
+  if(!/^[\x20-\x7e]+$/.test(v))return showLogin('密碼請使用英文和數字');
+  try{localStorage.setItem('pw',v)}catch{}
+  try{await load()}catch(e){try{localStorage.removeItem('pw')}catch{}showLogin(e.message==='401'?'密碼不正確':'載入失敗：'+e.message)}
+}
 function go(v){view=v;edit=null;draw()}
 function draw(){
   document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===view||(view==='form'&&b.dataset.v==='list')));
@@ -150,5 +161,5 @@ function fin(){
   <h3>試算說明</h3>
   <ul class="mu"><li>平均月收入＝月收入＋年收入 ÷ 12，平均月支出同理，把年支出攤成每月</li><li>房貸負債比＝每月房貸 ÷ 平均月收入，房貸金額取自「貸款試算」目前的設定</li><li>顏色參考：綠色 30% 以下、橘色 30–35%、紅色超過 35%（常見參考值，不是銀行核貸標準）</li><li>未填寫的項目（醫療、旅遊等）不在計算內，建議另外預留緊急預備金</li></ul>`;
 }
-load().catch(e=>$('#app').innerHTML='<p class="mu">載入失敗：'+esc(e.message)+'（請確認 D1 已綁定為 DB 並已匯入資料）</p>');
+load().catch(e=>e.message==='401'?showLogin():$('#app').innerHTML='<p class="mu">載入失敗：'+esc(e.message)+'（請確認 D1 已綁定為 DB 並已匯入資料）</p>');
 </script></body></html>
