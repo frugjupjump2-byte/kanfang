@@ -5,4 +5,4 @@ pages_build_output_dir = "public"
 [[d1_databases]]
 binding = "DB"
 database_name = "kanfang"
-database_id = "貼上 wrangler d1 create 回傳的 id"
+database_id = "228ac1b1-7e9a-4ed9-b03d-964135f20e29"
