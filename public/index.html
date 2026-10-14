@@ -23,6 +23,10 @@ nav{position:fixed;bottom:calc(12px + env(safe-area-inset-bottom));left:50%;tran
 nav button{border:0;background:none;padding:6px 16px;border-radius:99px;color:var(--tx);display:flex;flex-direction:column;align-items:center;font-size:12px}
 nav .on{background:#dbeafe;color:#1e40af}
 summary{cursor:pointer}
+h3{margin:22px 0 8px;font-size:16px}
+.bar{height:28px;background:#8881;border-radius:6px;margin:4px 0 14px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--pr);border-radius:6px}
+ul.mu{padding-left:20px;line-height:1.9;margin:0}
 </style></head><body>
 <div id="app">載入中…</div>
 <nav><button data-v="list" onclick="go('list')">🏠<span>看屋筆記</span></button><button data-v="guide" onclick="go('guide')">📖<span>買房攻略</span></button><button data-v="calc" onclick="go('calc')">🧮<span>貸款試算</span></button></nav>
@@ -82,23 +86,36 @@ async function del(){
 
 const vGuide=()=>'<h2>買房攻略</h2>'+G.map(g=>`<details class="card"><summary><b>${esc(g.title)}</b><div class="mu">${esc(g.category)}</div></summary><div style="white-space:pre-wrap;margin-top:10px">${esc(g.content)}</div></details>`).join('');
 
-const vCalc=()=>`<h2>貸款試算</h2><div class="card">
-  <label>帶入看過的物件</label><select id="c_p" onchange="pick()"><option value="">手動輸入</option>${P.map(p=>`<option value="${+p.price_wan||''}">${esc(p.title)}（${num(p.price_wan)} 萬）</option>`).join('')}</select>
-  <label>房價（萬）</label><input id="c_price" type="number" value="2000" oninput="calc()">
-  <label>自備款成數（%）</label><input id="c_down" type="number" value="20" oninput="calc()">
-  <label>年利率（%）</label><input id="c_rate" type="number" step="0.01" value="2.2" oninput="calc()">
-  <label>貸款年限（年）</label><input id="c_yr" type="number" value="30" oninput="calc()">
-  <label>攤還方式</label><select id="c_m" onchange="calc()"><option value="e">本息平均攤還</option><option value="p">本金平均攤還</option></select></div>
-  <div class="card" id="c_out"></div>`;
-function pick(){const x=$('#c_p').value;if(x){$('#c_price').value=x;calc()}}
+let C={price:2480,down:20,yr:30,rate:2.1,grace:0};
+try{Object.assign(C,JSON.parse(localStorage.getItem('calc')||'{}'))}catch{}
+const save=()=>{try{localStorage.setItem('calc',JSON.stringify(C))}catch{}};
+const upd=(k,v)=>{C[k]=+v;save();calc()};
+const opt=(arr,cur,fmt)=>arr.map(a=>`<option value="${a}" ${a==cur?'selected':''}>${fmt(a)}</option>`).join('');
+const vCalc=()=>`<h2>貸款試算</h2>
+<label>帶入看過的物件</label><select onchange="pick(this.value)"><option value="">手動輸入</option>${P.map(p=>`<option value="${+p.price_wan||''}">${esc(p.title)}（${num(p.price_wan)} 萬）</option>`).join('')}</select>
+<label>房屋總價（萬）</label><input id="c_price" type="number" value="${C.price}" oninput="upd('price',this.value)">
+<label>頭期款比例（%）</label><input type="number" value="${C.down}" oninput="upd('down',this.value)">
+<label>貸款年期</label><select onchange="upd('yr',this.value)">${opt([10,15,20,25,30,35,40],C.yr,a=>a+' 年')}</select>
+<label>寬限期</label><select onchange="upd('grace',this.value)">${opt([0,1,2,3,4,5],C.grace,a=>a?a+' 年':'無寬限期')}</select>
+<label>年利率（%）</label><input type="number" step="0.01" value="${C.rate}" oninput="upd('rate',this.value)">
+<div id="c_out"></div>`;
+function pick(x){if(x){C.price=+x;save();$('#c_price').value=x;calc()}}
 function calc(){
-  const v=k=>+$('#c_'+k).value||0,price=v('price')*1e4,down=price*v('down')/100,L=price-down,n=v('yr')*12,r=v('rate')/1200,e=$('#c_m').value==='e',f=x=>Math.round(x).toLocaleString()+' 元';
-  if(L<=0||n<=0)return $('#c_out').innerHTML='<span class="mu">請輸入完整資料</span>';
-  let m1,m2,tot;
-  if(e){m1=m2=r?L*r/(1-Math.pow(1+r,-n)):L/n;tot=m1*n-L}
-  else{m1=L/n+L*r;m2=L/n*(1+r);tot=L*r*(n+1)/2}
-  const row=(l,x)=>`<div class="mu" style="margin-top:8px">${l}</div><div class="big">${x}</div>`;
-  $('#c_out').innerHTML=row('自備款',f(down))+row('貸款金額',f(L))+row(e?'每月還款':'月付（首期 → 末期）',e?f(m1):f(m1)+' → '+f(m2))+row('總利息',f(tot));
+  const price=C.price*1e4,down=price*C.down/100,L=price-down,n=C.yr*12,g=C.grace*12,m=n-g,r=C.rate/1200,
+    W=x=>Math.round(x/1e4).toLocaleString()+' 萬',Y=x=>Math.round(x).toLocaleString()+' 元';
+  if(L<=0||m<=0)return $('#c_out').innerHTML='<p class="mu">請輸入完整資料</p>';
+  const pay=r?L*r/(1-Math.pow(1+r,-m)):L/m,gp=L*r,tot=g*gp+pay*m-L,mx=Math.max(L,tot);
+  const box=(l,v,s)=>`<div class="card"><div class="mu">${l}</div><div class="big">${v}</div><div class="mu">${s}</div></div>`;
+  $('#c_out').innerHTML=`<div class="grid" style="margin-top:8px">
+    ${box(g?'寬限期後每月還款':'每月還款',Y(pay),g?`寬限期後共 ${m} 期`:`共 ${C.yr} 年 · ${n} 期`)}
+    ${box('頭期款',W(down),`${C.down}% 自備款`)}
+    ${box('貸款金額',W(L),`${100-C.down}% 貸款成數`)}
+    ${box('利息總支出',W(tot),'貸款期間累計')}</div>
+  ${g?box('寬限期內每月繳款（只繳利息）',Y(gp),`寬限期 ${C.grace} 年，期間不還本金`):''}
+  <h3>本金 vs 利息比例</h3>
+  ${[['貸款本金',L],['利息總支出',tot]].map(([l,v])=>`<div class="row mu"><span>${l}</span><b style="color:var(--tx)">${W(v)}</b></div><div class="bar"><i style="width:${Math.max(v/mx*100,1)}%"></i></div>`).join('')}
+  <h3>試算說明</h3>
+  <ul class="mu"><li>採本息平均攤還方式試算</li><li>寬限期內只繳利息、不還本金，寬限期後在剩餘年期內攤還，每月還款會變高；貸款年期已包含寬限期</li><li>實際利率依銀行核定為準，通常前 2 年較低後調升</li><li>建議留意「房貸負擔率」不超過月收入的 30–35%</li><li>以上試算不含保險費、開辦費等其他費用</li></ul>`;
 }
 load().catch(e=>$('#app').innerHTML='<p class="mu">載入失敗：'+esc(e.message)+'（請確認 D1 已綁定為 DB 並已匯入資料）</p>');
 </script></body></html>
