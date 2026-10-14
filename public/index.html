@@ -1,6 +1,6 @@
 <!doctype html><html lang="zh-Hant"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes"><title>看房筆記</title>
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><title>看房筆記</title>
 <style>
 :root{--bg:#f5f5f5;--card:#fff;--tx:#1a1a1a;--mu:#666;--pr:#2563eb}
 @media(prefers-color-scheme:dark){:root{--bg:#111;--card:#1c1c1e;--tx:#f2f2f2;--mu:#999}}
@@ -88,8 +88,8 @@ const vGuide=()=>'<h2>買房攻略</h2>'+G.map(g=>`<details class="card"><summar
 
 let C={price:2480,down:20,yr:30,rate:2.1,grace:0};
 try{Object.assign(C,JSON.parse(localStorage.getItem('calc')||'{}'))}catch{}
-const save=()=>{try{localStorage.setItem('calc',JSON.stringify(C))}catch{}};
-const upd=(k,v)=>{C[k]=+v;save();calc()};
+const saveC=()=>{try{localStorage.setItem('calc',JSON.stringify(C))}catch{}};
+const upd=(k,v)=>{C[k]=+v;saveC();calc()};
 const opt=(arr,cur,fmt)=>arr.map(a=>`<option value="${a}" ${a==cur?'selected':''}>${fmt(a)}</option>`).join('');
 const vCalc=()=>`<h2>貸款試算</h2>
 <label>帶入看過的物件</label><select onchange="pick(this.value)"><option value="">手動輸入</option>${P.map(p=>`<option value="${+p.price_wan||''}">${esc(p.title)}（${num(p.price_wan)} 萬）</option>`).join('')}</select>
@@ -99,7 +99,7 @@ const vCalc=()=>`<h2>貸款試算</h2>
 <label>寬限期</label><select onchange="upd('grace',this.value)">${opt([0,1,2,3,4,5],C.grace,a=>a?a+' 年':'無寬限期')}</select>
 <label>年利率（%）</label><input type="number" step="0.01" value="${C.rate}" oninput="upd('rate',this.value)">
 <div id="c_out"></div>`;
-function pick(x){if(x){C.price=+x;save();$('#c_price').value=x;calc()}}
+function pick(x){if(x){C.price=+x;saveC();$('#c_price').value=x;calc()}}
 function calc(){
   const price=C.price*1e4,down=price*C.down/100,L=price-down,n=C.yr*12,g=C.grace*12,m=n-g,r=C.rate/1200,
     W=x=>Math.round(x/1e4).toLocaleString()+' 萬',Y=x=>Math.round(x).toLocaleString()+' 元';
