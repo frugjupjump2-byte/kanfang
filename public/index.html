@@ -60,10 +60,12 @@ function draw(){
 }
 
 function vList(){
-  const n=P.length,avg=n?P.reduce((a,p)=>a+(+p.price_wan||0),0)/n:0,top=Math.max(0,...P.map(p=>+p.rating||0));
+  const n=P.length,avg=n?P.reduce((a,p)=>a+(+p.price_wan||0),0)/n:0,top=Math.max(0,...P.map(p=>+p.rating||0)),fav=P.filter(p=>p.status==='心儀').length;
   const L=flt==='全部'?P:P.filter(p=>p.status===flt);
   return `<h2>看屋筆記</h2>
-  <div class="grid"><div class="card"><div class="mu">平均開價</div><div class="big">${Math.round(avg).toLocaleString()} 萬</div></div>
+  <div class="grid"><div class="card"><div class="mu">累計看過物件</div><div class="big">${n} 間</div></div>
+  <div class="card"><div class="mu">心儀候選</div><div class="big">${fav} 間</div>${fav?'<div class="mu" style="color:#16a34a">可安排複看議價</div>':''}</div>
+  <div class="card"><div class="mu">平均開價</div><div class="big">${Math.round(avg).toLocaleString()} 萬</div></div>
   <div class="card"><div class="mu">最高綜合評分</div><div class="big">${top.toFixed(1)} 分</div></div></div>
   <button class="btn" onclick="openForm()">＋ 新增物件</button>
   <div class="tabs">${['全部',...ST].map(s=>`<button class="${s===flt?'on':''}" onclick="flt='${s}';draw()">${s} (${s==='全部'?n:P.filter(p=>p.status===s).length})</button>`).join('')}</div>
